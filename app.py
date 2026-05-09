@@ -38,7 +38,7 @@ except ImportError:
 
 
 # =========================================================
-# 1. 路径设置
+# 1. Path settings
 # =========================================================
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -55,22 +55,21 @@ AD_THRESHOLD = 0.263235
 
 
 # =========================================================
-# 2. 页面基础设置
+# 2. Page configuration
 # =========================================================
 st.set_page_config(
     page_title="SkinSensTox",
-    page_icon="🧪",
+    page_icon="M",
     layout="wide"
 )
 
 
 # =========================================================
-# 3. 基础函数
+# 3. Core functions
 # =========================================================
 def standardize_smiles(smiles):
     """
-    SMILES 标准化。
-    返回 canonical_smiles, mol, fp, status
+    Standardize SMILES and return canonical SMILES, molecule, fingerprint, and status.
     """
     if pd.isna(smiles):
         return None, None, None, "Empty SMILES"
@@ -124,16 +123,15 @@ def get_risk_level(prob):
 @st.cache_resource
 def load_train_reference():
     """
-    读取训练集，生成训练集指纹。
-    用于 AD 分析。
+    Load training molecules and generate Morgan fingerprints for AD analysis.
     """
     if not TRAIN_PATH.exists():
-        return None, None, None, "训练集文件不存在"
+        return None, None, None, "Training file not found"
 
     train_df = pd.read_excel(TRAIN_PATH)
 
     if "SMILES" not in train_df.columns:
-        return None, None, None, "训练集缺少 SMILES 列"
+        return None, None, None, "The training set does not contain a SMILES column"
 
     if "Label" not in train_df.columns:
         train_df["Label"] = np.nan
@@ -151,7 +149,7 @@ def load_train_reference():
             fp_list.append(fp)
 
     if len(fp_list) == 0:
-        return None, None, None, "训练集中没有有效 SMILES"
+        return None, None, None, "No valid SMILES found in the training set"
 
     return canonical_list, label_list, fp_list, "OK"
 
@@ -159,23 +157,21 @@ def load_train_reference():
 @st.cache_resource
 def load_prediction_model():
     """
-    读取网站用 Descriptors-RF 模型包。
-    best_model.pkl 应该位于：
-    D:\shsh\SkinSensTox_streamlit\models\best_model.pkl
+    Load the deployed Descriptors-RF model package.
     """
     if MODEL_PATH.exists():
         try:
             model_package = joblib.load(MODEL_PATH)
             return model_package, "OK"
         except Exception as e:
-            return None, f"模型读取失败：{e}"
+            return None, f"Failed to load model: {e}"
 
-    return None, "模型文件不存在"
+    return None, "Model file not found"
 
 
 def calculate_ad(fp):
     """
-    基于 Morgan fingerprint + Tanimoto similarity 进行 AD 判断。
+    Assess applicability domain using Morgan fingerprint and Tanimoto similarity.
     """
     train_smiles, train_labels, train_fps, status = load_train_reference()
 
@@ -205,7 +201,7 @@ def calculate_ad(fp):
 
 def calc_descriptors_for_model(mol, model_package):
     """
-    按训练 Descriptors-RF 时保存的规则计算 RDKit descriptors。
+    Calculate RDKit descriptors using the same preprocessing rules saved during model training.
     """
     desc_names = model_package["desc_names"]
     all_nan_cols = model_package["all_nan_cols"]
@@ -239,15 +235,10 @@ def calc_descriptors_for_model(mol, model_package):
     desc_df = pd.DataFrame([values], columns=desc_names, dtype=np.float64)
 
     desc_df = desc_df.replace([np.inf, -np.inf], np.nan)
-
     desc_df = desc_df.drop(columns=all_nan_cols, errors="ignore")
-
     desc_df = desc_df.fillna(medians)
-
     desc_df = desc_df.reindex(columns=finite_cols)
-
     desc_df = desc_df.drop(columns=huge_cols, errors="ignore")
-
     desc_df = desc_df.reindex(columns=keep_cols)
 
     try:
@@ -264,7 +255,7 @@ def calc_descriptors_for_model(mol, model_package):
 
 def predict_toxicity(mol):
     """
-    使用网站导出的 Descriptors-RF 模型进行皮肤致敏预测。
+    Predict skin sensitization using the deployed Descriptors-RF model.
     """
     model_package, status = load_prediction_model()
 
@@ -282,7 +273,7 @@ def predict_toxicity(mol):
                 "Pred_probability": None,
                 "Pred_label": "Unsupported model",
                 "Risk_level": "Not available",
-                "Pred_message": "best_model.pkl 不是 Descriptors-RF 模型包。"
+                "Pred_message": "best_model.pkl is not a Descriptors-RF model package."
             }
 
         if model_package.get("model_type") != "Descriptors-RF":
@@ -290,7 +281,7 @@ def predict_toxicity(mol):
                 "Pred_probability": None,
                 "Pred_label": "Unsupported model",
                 "Risk_level": "Not available",
-                "Pred_message": f"当前模型类型为 {model_package.get('model_type')}，不是 Descriptors-RF。"
+                "Pred_message": f"Current model type is {model_package.get('model_type')}, not Descriptors-RF."
             }
 
         model = model_package["model"]
@@ -343,7 +334,6 @@ def analyze_one_smiles(smiles):
         return result, mol
 
     pred_result = predict_toxicity(mol)
-
     ad_result = calculate_ad(fp)
 
     result.update(pred_result)
@@ -354,7 +344,7 @@ def analyze_one_smiles(smiles):
 
 def display_molecule(mol, title="Molecular structure"):
     if mol is None:
-        st.warning("无法显示分子结构。")
+        st.warning("Unable to display molecular structure.")
         return
 
     img = Draw.MolToImage(mol, size=(420, 300))
@@ -362,83 +352,84 @@ def display_molecule(mol, title="Molecular structure"):
 
 
 # =========================================================
-# 4. 侧边栏
+# 4. Sidebar
 # =========================================================
 st.sidebar.title("SkinSensTox")
-st.sidebar.caption("Skin sensitization prediction and mechanism visualization")
+st.sidebar.caption("Skin Sensitization Prediction and Mechanism Visualization")
 
 page = st.sidebar.radio(
-    "选择页面",
+    "Select page",
     [
-        "首页 Overview",
-        "单分子预测 Single Prediction",
-        "批量预测 Batch Prediction",
-        "AD 适用域分析",
-        "高风险分子与机制解释",
-        "关于 About"
+        "Overview",
+        "Single Prediction",
+        "Batch Prediction",
+        "Applicability Domain Analysis",
+        "High-Risk Molecules and Mechanistic Interpretation",
+        "About"
     ]
 )
 
 st.sidebar.divider()
-st.sidebar.write("当前路径设置：")
-st.sidebar.code(f"训练集: {TRAIN_PATH}")
-st.sidebar.code(f"AD结果: {AD_RESULT_PATH}")
-st.sidebar.code(f"模型: {MODEL_PATH}")
+st.sidebar.write("Current path settings:")
+st.sidebar.code(f"Training set: {TRAIN_PATH}")
+st.sidebar.code(f"AD result: {AD_RESULT_PATH}")
+st.sidebar.code(f"Model: {MODEL_PATH}")
 
 
 # =========================================================
-# 5. 首页
+# 5. Overview
 # =========================================================
-if page == "首页 Overview":
+if page == "Overview":
 
     st.title("SkinSensTox")
-    st.subheader("皮肤致敏毒性预测与机制可视化平台")
+    st.subheader("Skin Sensitization Toxicity Prediction and Mechanism Visualization Platform")
 
     st.markdown(
         """
-        本平台用于小分子皮肤致敏风险预测、适用域可靠性判断、
-        高风险分子结构分类以及潜在机制解释。
+        This platform supports small-molecule skin sensitization risk prediction,
+        applicability domain assessment, representative high-risk molecule visualization,
+        and mechanistic interpretation.
         """
     )
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("训练集分子数", "1082")
-    col2.metric("测试集分子数", "271")
-    col3.metric("AD 阈值", f"{AD_THRESHOLD:.4f}")
-    col4.metric("Inside AD 比例", "93.7%")
+    col1.metric("Training molecules", "1082")
+    col2.metric("Test molecules", "271")
+    col3.metric("AD cutoff", f"{AD_THRESHOLD:.4f}")
+    col4.metric("Inside AD ratio", "93.7%")
 
     st.divider()
 
-    st.markdown("### 研究流程")
+    st.markdown("### Workflow")
 
     st.markdown(
         """
-        **SMILES 输入 → 分子标准化 → RDKit descriptors 计算 → Descriptors-RF 模型预测 → AD 可靠性判断 → 结构解释 → 机制可视化**
+        **SMILES input → Molecular standardization → RDKit descriptor calculation → Descriptors-RF prediction → AD reliability assessment → Structural interpretation → Mechanism visualization**
         """
     )
 
     st.info(
-        "当前版本已接入 Descriptors-RF 预测模型，并保留 Morgan-Tanimoto AD 适用域判断。"
+        "The current version integrates a Descriptors-RF prediction model and retains Morgan-Tanimoto applicability domain assessment."
     )
 
 
 # =========================================================
-# 6. 单分子预测
+# 6. Single Prediction
 # =========================================================
-elif page == "单分子预测 Single Prediction":
+elif page == "Single Prediction":
 
-    st.title("单分子皮肤致敏风险分析")
+    st.title("Single-Molecule Skin Sensitization Risk Analysis")
 
     example_smiles = "CC(=O)Oc1ccccc1C(=O)O"
 
     smiles = st.text_area(
-        "输入一个 SMILES：",
+        "Enter a SMILES:",
         value=example_smiles,
         height=100
     )
 
-    run_button = st.button("开始分析", type="primary")
+    run_button = st.button("Run Analysis", type="primary")
 
     if run_button:
 
@@ -451,7 +442,7 @@ elif page == "单分子预测 Single Prediction":
         with left:
             display_molecule(mol)
 
-            st.markdown("### 基础分子性质")
+            st.markdown("### Basic Molecular Properties")
 
             if mol is not None:
                 desc = calc_basic_descriptors(mol)
@@ -461,62 +452,66 @@ elif page == "单分子预测 Single Prediction":
                 )
 
         with right:
-            st.markdown("### 预测与 AD 结果")
+            st.markdown("### Prediction and AD Results")
 
             st.write(f"**Canonical SMILES:** `{result['Canonical_SMILES']}`")
-            st.write(f"**SMILES 状态:** {result['SMILES_status']}")
+            st.write(f"**SMILES status:** {result['SMILES_status']}")
 
             pred_prob = result.get("Pred_probability")
 
             if pred_prob is not None:
-                st.metric("皮肤致敏预测概率", f"{pred_prob:.4f}")
-                st.write(f"**预测类别:** {result['Pred_label']}")
-                st.write(f"**风险等级:** {result['Risk_level']}")
+                st.metric("Predicted Skin Sensitization Probability", f"{pred_prob:.4f}")
+                st.write(f"**Predicted class:** {result['Pred_label']}")
+                st.write(f"**Risk level:** {result['Risk_level']}")
 
                 if result["Pred_label"] == "Sensitizer":
-                    st.error("模型预测该分子具有皮肤致敏风险。")
+                    st.error("The model predicts that this molecule has skin sensitization risk.")
                 else:
-                    st.success("模型预测该分子为非皮肤致敏分子。")
+                    st.success("The model predicts that this molecule is non-sensitizing.")
 
             else:
                 st.warning(
-                    f"模型预测未完成：{result.get('Pred_message', 'Unknown error')}"
+                    f"Model prediction failed: {result.get('Pred_message', 'Unknown error')}"
                 )
 
             ad_sim = result.get("AD_max_Tanimoto")
 
             if ad_sim is not None:
-                st.metric("AD 最大 Tanimoto 相似度", f"{ad_sim:.4f}")
-                st.write(f"**AD 状态:** {result['AD_status']}")
-                st.write(f"**最相似训练集分子:** `{result['nearest_train_SMILES']}`")
-                st.write(f"**最相似训练集分子 Label:** {result['nearest_train_Label']}")
+                st.metric("AD Max Tanimoto Similarity", f"{ad_sim:.4f}")
+                st.write(f"**AD status:** {result['AD_status']}")
+                st.write(f"**Nearest training-set molecule:** `{result['nearest_train_SMILES']}`")
+                st.write(f"**Nearest training-set molecule label:** {result['nearest_train_Label']}")
 
                 if result["AD_status"] == "Inside AD":
-                    st.success("该分子位于模型适用域内，预测可靠性相对较高。")
+                    st.success(
+                        "This molecule is inside the model applicability domain, suggesting relatively higher prediction reliability."
+                    )
                 else:
-                    st.error("该分子位于模型适用域外，预测结果应谨慎解释。")
+                    st.error(
+                        "This molecule is outside the model applicability domain; the prediction should be interpreted with caution."
+                    )
 
             else:
                 st.warning(
-                    f"AD 分析未完成：{result.get('AD_message', 'Unknown error')}"
+                    f"AD analysis failed: {result.get('AD_message', 'Unknown error')}"
                 )
 
 
 # =========================================================
-# 7. 批量预测
+# 7. Batch Prediction
 # =========================================================
-elif page == "批量预测 Batch Prediction":
+elif page == "Batch Prediction":
 
-    st.title("批量 SMILES 分析")
+    st.title("Batch SMILES Analysis")
 
     st.markdown(
         """
-        上传 CSV 或 Excel 文件，文件中至少需要包含一列 `SMILES`。
+        Upload a CSV or Excel file. The file must contain at least one column named `SMILES`.
         """
     )
 
     uploaded_file = st.file_uploader(
-        "上传文件",
+        "Upload file",
         type=["csv", "xlsx"]
     )
 
@@ -528,14 +523,14 @@ elif page == "批量预测 Batch Prediction":
             else:
                 df = pd.read_excel(uploaded_file)
 
-            st.write("上传文件预览：")
+            st.write("Uploaded file preview:")
             st.dataframe(df.head(), use_container_width=True)
 
             if "SMILES" not in df.columns:
-                st.error("文件中缺少 SMILES 列。")
+                st.error("The uploaded file does not contain a SMILES column.")
 
             else:
-                if st.button("开始批量分析", type="primary"):
+                if st.button("Run Batch Analysis", type="primary"):
 
                     results = []
 
@@ -550,13 +545,13 @@ elif page == "批量预测 Batch Prediction":
 
                     result_df = pd.DataFrame(results)
 
-                    st.success("批量分析完成。")
+                    st.success("Batch analysis completed.")
                     st.dataframe(result_df, use_container_width=True)
 
                     csv_bytes = result_df.to_csv(index=False).encode("utf-8-sig")
 
                     st.download_button(
-                        label="下载 CSV 结果",
+                        label="Download CSV Results",
                         data=csv_bytes,
                         file_name="SkinSensTox_batch_prediction.csv",
                         mime="text/csv"
@@ -572,39 +567,39 @@ elif page == "批量预测 Batch Prediction":
                         )
 
                     st.download_button(
-                        label="下载 Excel 结果",
+                        label="Download Excel Results",
                         data=output.getvalue(),
                         file_name="SkinSensTox_batch_prediction.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
         except Exception as e:
-            st.error(f"文件读取或分析失败：{e}")
+            st.error(f"File reading or analysis failed: {e}")
 
 
 # =========================================================
-# 8. AD 适用域分析
+# 8. Applicability Domain Analysis
 # =========================================================
-elif page == "AD 适用域分析":
+elif page == "Applicability Domain Analysis":
 
-    st.title("AD 适用域分析")
+    st.title("Applicability Domain Analysis")
 
     st.markdown(
         """
-        本模块基于 Morgan fingerprint 与 Tanimoto similarity 评估测试集分子是否位于训练集化学空间内。
+        This module evaluates whether test-set molecules fall within the training-set chemical space based on Morgan fingerprints and Tanimoto similarity.
         """
     )
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("AD 阈值", f"{AD_THRESHOLD:.4f}")
-    col2.metric("测试集有效分子数", "271")
+    col1.metric("AD cutoff", f"{AD_THRESHOLD:.4f}")
+    col2.metric("Valid test molecules", "271")
     col3.metric("Inside AD", "254")
     col4.metric("Outside AD", "17")
 
     st.divider()
 
     if not AD_RESULT_PATH.exists():
-        st.error(f"未找到 AD 结果文件：{AD_RESULT_PATH}")
+        st.error(f"AD result file not found: {AD_RESULT_PATH}")
 
     else:
         try:
@@ -615,7 +610,7 @@ elif page == "AD 适用域分析":
             st.markdown("### AD Summary")
             st.dataframe(summary_df, use_container_width=True)
 
-            st.markdown("### 训练集最近邻 Tanimoto 相似度分布")
+            st.markdown("### Training-Set Nearest-Neighbor Tanimoto Similarity Distribution")
 
             if "train_nearest_neighbor_similarity" in train_nn_df.columns:
                 fig1 = px.histogram(
@@ -632,7 +627,7 @@ elif page == "AD 适用域分析":
                 )
                 st.plotly_chart(fig1, use_container_width=True)
 
-            st.markdown("### 测试集 Inside / Outside AD 分布")
+            st.markdown("### Test-Set Inside/Outside AD Distribution")
 
             if "AD_status" in test_ad_df.columns:
                 fig2 = px.histogram(
@@ -642,7 +637,7 @@ elif page == "AD 适用域分析":
                 )
                 st.plotly_chart(fig2, use_container_width=True)
 
-            st.markdown("### 测试集 AD_max_Tanimoto 排序图")
+            st.markdown("### Ranked AD_max_Tanimoto Values of Test Compounds")
 
             if "AD_max_Tanimoto" in test_ad_df.columns:
                 temp_df = test_ad_df.copy()
@@ -665,43 +660,42 @@ elif page == "AD 适用域分析":
                 st.plotly_chart(fig3, use_container_width=True)
 
         except Exception as e:
-            st.error(f"读取 AD 结果失败：{e}")
+            st.error(f"Failed to read AD results: {e}")
 
 
 # =========================================================
-# 9. 高风险分子与机制解释
+# 9. High-Risk Molecules and Mechanistic Interpretation
 # =========================================================
-elif page == "高风险分子与机制解释":
+elif page == "High-Risk Molecules and Mechanistic Interpretation":
 
-    st.title("高风险分子与机制解释")
+    st.title("High-Risk Molecules and Mechanistic Interpretation")
 
-    st.markdown("### 总体机制解释")
+    st.markdown("### Overall Mechanistic Interpretation")
 
     st.markdown(
         """
-        对核心高风险皮肤毒性分子的预测靶点进行整体分析后发现，
-        这些分子整体上可能涉及四类主要生物学过程：
+        Overall analysis of predicted targets for representative high-risk skin sensitizers suggests that these molecules may be associated with four major biological processes:
         """
     )
 
     mechanism_df = pd.DataFrame({
-        "机制类别": [
-            "核受体信号及激素/甾体代谢调控",
-            "化学与氧化应激反应",
-            "细胞死亡与损伤清除",
-            "炎症免疫及组织重塑"
+        "Mechanistic category": [
+            "Nuclear receptor signaling and hormone/steroid metabolic regulation",
+            "Chemical and oxidative stress response",
+            "Cell death and damage clearance",
+            "Inflammation, immune response, and tissue remodeling"
         ],
-        "代表条目": [
+        "Representative terms": [
             "nuclear receptors; hormone metabolic process; regulation of steroid metabolic process",
             "cellular response to abiotic stimulus; cellular response to chemical stress; regulation of reactive oxygen species metabolic process",
             "apoptosis; efferocytosis",
             "IL-4/IL-13 signaling; myeloid leukocyte mediated immunity; collagen degradation"
         ],
-        "机制解释": [
-            "提示高风险分子可能影响核受体相关转录调控，并干扰激素或甾体代谢稳态。",
-            "提示高风险分子可能诱导化学应激、氧化应激和 ROS 代谢异常。",
-            "提示高风险分子可能参与细胞损伤、凋亡以及损伤细胞清除过程。",
-            "提示高风险分子可能与炎症免疫反应和皮肤组织重塑过程相关。"
+        "Interpretation": [
+            "High-risk molecules may affect nuclear receptor-mediated transcriptional regulation and disturb hormone or steroid metabolic homeostasis.",
+            "High-risk molecules may induce chemical stress, oxidative stress, and abnormal ROS metabolism.",
+            "High-risk molecules may be involved in cellular damage, apoptosis, and clearance of damaged cells.",
+            "High-risk molecules may be associated with inflammatory immune responses and skin tissue remodeling."
         ]
     })
 
@@ -709,14 +703,15 @@ elif page == "高风险分子与机制解释":
 
     st.markdown(
         """
-        总体来看，高风险皮肤毒性分子可能并非通过单一机制发挥作用，
-        而更可能通过内分泌/核受体扰动、应激损伤、细胞命运改变以及炎症和组织重塑等多种途径共同介导毒性。
+        Overall, high-risk skin sensitizers are unlikely to act through a single mechanism.
+        Instead, their toxicity may be mediated by multiple processes, including endocrine/nuclear receptor disruption,
+        stress-induced damage, altered cell fate, inflammation, and tissue remodeling.
         """
     )
 
     st.divider()
 
-    st.markdown("### 结构分组机制")
+    st.markdown("### Structure-Based Mechanistic Groups")
 
     col1, col2, col3 = st.columns(3)
 
@@ -725,8 +720,8 @@ elif page == "高风险分子与机制解释":
         st.markdown("**Long-chain lipophilic reactive**")
         st.write(
             """
-            这类长链高疏水反应性分子主要偏向脂质/激素稳态扰动、
-            核受体相关转录调控异常以及化学应激反应。
+            These long-chain lipophilic reactive molecules are mainly associated with lipid/hormone homeostasis disruption,
+            abnormal nuclear receptor-related transcriptional regulation, and chemical stress responses.
             """
         )
 
@@ -735,8 +730,8 @@ elif page == "高风险分子与机制解释":
         st.markdown("**Sulfur/carbonyl reactive**")
         st.write(
             """
-            这类含硫/含羰基反应性分子主要偏向 MAPK 相关应激信号、
-            蛋白磷酸化、蛋白稳态压力以及药物代谢/脂质代谢异常。
+            These sulfur- or carbonyl-containing reactive molecules are mainly associated with MAPK-related stress signaling,
+            protein phosphorylation, proteostasis stress, and abnormal drug/lipid metabolism.
             """
         )
 
@@ -745,14 +740,14 @@ elif page == "高风险分子与机制解释":
         st.markdown("**Aromatic amine/nitro/halogenated aromatic**")
         st.write(
             """
-            这类芳香胺/硝基/卤代芳香分子主要偏向受体介导的转录调控失衡、
-            激素/甾体代谢异常、应激激酶级联激活以及上皮细胞增殖和衰老状态改变。
+            These aromatic amine, nitro, or halogenated aromatic molecules are mainly associated with receptor-mediated transcriptional dysregulation,
+            abnormal hormone/steroid metabolism, stress-activated kinase cascades, and altered epithelial proliferation or senescence.
             """
         )
 
     st.divider()
 
-    st.markdown("### Top toxic molecules")
+    st.markdown("### Top Toxic Molecules")
 
     if TOP20_PATH.exists():
         try:
@@ -760,17 +755,17 @@ elif page == "高风险分子与机制解释":
 
             st.markdown(
                 """
-                下表展示模型预测得到的高风险皮肤致敏分子。
+                The following table lists representative high-risk skin sensitizers predicted by the model.
                 """
             )
 
             st.dataframe(top20_df, use_container_width=True)
 
             if "SMILES" not in top20_df.columns:
-                st.error("top20_toxic.csv 中缺少 SMILES 列，无法绘制分子结构。")
+                st.error("The file top20_toxic.csv does not contain a SMILES column, so molecular structures cannot be rendered.")
 
             else:
-                st.markdown("### 分子结构预览")
+                st.markdown("### Molecular Structure Preview")
 
                 for i, row in top20_df.head(20).iterrows():
 
@@ -778,7 +773,7 @@ elif page == "高风险分子与机制解释":
 
                     if status != "Valid":
                         with st.expander(f"{i + 1}. Molecule_{i + 1} | Invalid SMILES"):
-                            st.warning(f"该分子 SMILES 无效：{row['SMILES']}")
+                            st.warning(f"Invalid SMILES: {row['SMILES']}")
                         continue
 
                     if "Name" in top20_df.columns:
@@ -875,37 +870,37 @@ elif page == "高风险分子与机制解释":
                             st.write(f"**AD max Tanimoto:** {row.get('ad_max_tanimoto')}")
 
         except Exception as e:
-            st.error(f"读取 Top20 文件失败：{e}")
+            st.error(f"Failed to read Top toxic molecules file: {e}")
 
     else:
         st.info(
-            f"当前未检测到 Top20 文件。后续可把 top20_toxic.csv 放到：{TOP20_PATH}"
+            f"Top toxic molecules file was not detected. Please place top20_toxic.csv at: {TOP20_PATH}"
         )
 
 
 # =========================================================
 # 10. About
 # =========================================================
-elif page == "关于 About":
+elif page == "About":
 
     st.title("About SkinSensTox")
 
     st.markdown(
         """
-        **SkinSensTox** 是一个用于皮肤致敏毒性预测和机制可视化的原型平台。
+        **SkinSensTox** is a prototype platform for skin sensitization toxicity prediction and mechanism visualization.
 
-        当前版本包含：
+        The current version includes:
 
-        1. 单分子 SMILES 分析；
-        2. 批量 SMILES 分析；
-        3. Descriptors-RF 皮肤致敏预测；
-        4. Morgan-Tanimoto AD 适用域判断；
-        5. 分子结构图展示；
-        6. 高风险分子机制解释。
+        1. Single-molecule SMILES analysis;
+        2. Batch SMILES analysis;
+        3. Descriptors-RF skin sensitization prediction;
+        4. Morgan-Tanimoto applicability domain assessment;
+        5. Molecular structure visualization;
+        6. Mechanistic interpretation of high-risk molecules.
         """
     )
 
-    st.markdown("### 当前模型设置")
+    st.markdown("### Current Model Settings")
 
     st.code(
         f"""
@@ -923,7 +918,7 @@ Classification threshold:
         """
     )
 
-    st.markdown("### 当前 AD 设置")
+    st.markdown("### Current AD Settings")
 
     st.code(
         f"""
