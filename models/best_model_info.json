@@ -1,0 +1,16 @@
+{
+    "model_type": "Descriptors-RF",
+    "feature_type": "RDKit descriptors",
+    "best_params": {
+        "clf__criterion": "entropy",
+        "clf__max_depth": 10,
+        "clf__max_features": null,
+        "clf__min_samples_leaf": 1,
+        "clf__n_estimators": 50
+    },
+    "best_cv_auc": 0.8876113908455651,
+    "classification_threshold": 0.5,
+    "desc_number_raw": 217,
+    "desc_number_kept": 196,
+    "model_path": "D:\\shsh\\SkinSensTox_streamlit\\models\\best_model.pkl"
+}
